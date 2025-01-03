@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login with Conditional CAPTCHA</title>
+  <script src="blurcaptcha.js" defer></script>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f4;
+    }
+
+    .login-container {
+      width: 300px;
+      padding: 20px;
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .login-container input {
+      width: calc(100% - 20px);
+      margin: 10px 0;
+      padding: 10px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    #loginButton {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    #captchaContainer {
+      margin-top: 10px;
+      display: none; /* CAPTCHA başlangıçta gizli */
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h3>Giriş Yap</h3>
+    <input type="text" id="username" placeholder="Kullanıcı Adı" />
+    <input type="password" id="password" placeholder="Şifre" />
+    <div id="captchaContainer"></div>
+    <button id="loginButton">Giriş Yap</button>
+  </div>
+
+  <script>
+  let failedAttempts = 0; // Başarısız giriş sayacı
+
+document.addEventListener("DOMContentLoaded", () => {
+  const loginButton = document.getElementById("loginButton");
+  const captchaContainer = document.getElementById("captchaContainer");
+
+  // CAPTCHA oluşturma (Başlangıçta gizli)
+  let captchaInstance;
+
+  const showCaptcha = () => {
+    captchaContainer.style.display = "block"; // CAPTCHA görünür hale gelir
+    if (!captchaInstance) {
+      captchaInstance = createCaptcha("captchaContainer", {
+        digits: 4,
+        blurLevel: 6,
+        inputSize: 20,
+        instructionText: "Lütfen aşağıdaki sayıları girin",
+        activateButton: "loginButton", // Giriş butonu CAPTCHA sonrası aktif olur
+        serverValidation: false, // Sunucu doğrulaması için true veya false
+        serverUrl: "https://example.com/captcha-validate", // Sunucu doğrulama URL'si
+        onComplete: (digits) => {
+          if (captchaInstance.settings.serverValidation) {
+            // Sunucu doğrulaması
+            fetch(captchaInstance.settings.serverUrl, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ digits }),
+            })
+              .then((response) => {
+                if (!response.ok) throw new Error("CAPTCHA doğrulama başarısız.");
+                return response.json();
+              })
+              .then((data) => {
+                if (data.success) {
+                  alert("CAPTCHA doğrulaması başarılı!");
+                  loginButton.disabled = false; // Giriş butonunu aktif et
+                } else {
+                  alert("CAPTCHA doğrulama başarısız. Tekrar deneyin.");
+                }
+              })
+              .catch((error) => {
+                console.error("Hata:", error);
+                alert("Bir hata oluştu. Tekrar deneyin.");
+              });
+          } else {
+            // Tarayıcı doğrulaması
+            alert("CAPTCHA doğrulaması başarılı!");
+            loginButton.disabled = false; // Giriş butonunu aktif et
+          }
+        },
+      });
+    }
+  };
+
+  // Login butonu tıklama olayı
+  loginButton.addEventListener("click", () => {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    if (captchaInstance && captchaInstance.settings.serverValidation && captchaContainer.style.display === "block") {
+      // CAPTCHA çözülmeden giriş yapılamaz
+      alert("Lütfen CAPTCHA doğrulamasını tamamlayın.");
+      return;
+    }
+
+    if (username === "admin" && password === "12345") {
+      alert("Başarıyla giriş yaptınız!");
+    } else {
+      failedAttempts++;
+
+      if (failedAttempts >= 2) {
+        alert("2 hatalı giriş yaptınız. CAPTCHA doğrulaması gerekiyor.");
+        showCaptcha(); // CAPTCHA devreye giriyor
+      } else {
+        alert("Kullanıcı adı veya şifre hatalı. Tekrar deneyin.");
+      }
+    }
+  });
+});
+
+  </script>
+</body>
+</html>
